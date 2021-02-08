@@ -1,4 +1,4 @@
-# AdversarialMemory for RobustFeature (RFM)
+# Orthogonal Embedded Memory (OEM)
 *Author  : `Byung-Kwan Lee` (leebk@kaist.ac.kr),    Ph.D. Candidate, Electrical Engineering, KAIST*
 
 ## Adversarial Defense Contents in train folder
@@ -16,7 +16,7 @@
     - Run train_plain.sh
 
 ### Run Training
-For example: train_RFM.sh
+For example: train_OEM.sh
 ```bash
 sh train_OEM.sh
 ```
