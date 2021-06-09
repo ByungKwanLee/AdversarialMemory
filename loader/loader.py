@@ -26,131 +26,36 @@ from art.attacks.evasion import CarliniL2Method, ElasticNet, HopSkipJump, Bounda
 from art.estimators.classification import PyTorchClassifier
 
 
-class BoundaryAttack_(BoundaryAttack):
-
-    def __init__(self, estimator, targeted=True, delta=0.01, epsilon=0.01, step_adapt=0.667, max_iter=5000,\
-            num_trial=25, sample_size=20, init_size=100, batch_size=100, verbose=False):
-
-        super(BoundaryAttack_, self).__init__(estimator=estimator,  targeted=targeted, delta=delta, epsilon=epsilon, step_adapt=step_adapt, max_iter=max_iter,\
-                                            num_trial=num_trial, sample_size=sample_size, init_size=init_size, verbose=verbose)
-        self.batch_size = batch_size
-
-
-
-class HopSkipJump_(HopSkipJump):
-
-    def __init__(self, classifier, targeted=False, norm=2, max_iter=50,\
-            max_eval=10000, init_eval=100, init_size=100, batch_size = 100, verbose = True):
-
-        super(HopSkipJump_, self).__init__(classifier=classifier, targeted=targeted, norm=norm, max_iter=max_iter, \
-                                            max_eval=max_eval, init_eval=init_eval, init_size=init_size, verbose=verbose)
-        self.batch_size = batch_size
-
-
-
 def attack_loader(args, net):
 
     # Gradient Clamping based Attack
     if args.attack == "pgd":
         return torchattacks.PGD(model=net, eps=args.eps,
                                     alpha=args.eps/args.steps*2.3, steps=args.steps, random_start=True)
-    elif args.attack == "tpgd":
-        return torchattacks.TPGD(model=net, eps=args.eps,
-                                    alpha=args.eps/args.steps*2.3, steps=args.steps)
+
+    elif args.attack == "auto":
+        return torchattacks.APGD(model=net, eps=args.eps)
+
+    elif args.attack == "fab":
+        return torchattacks.FAB(model=net, eps=args.eps, n_classes=args.n_classes)
+
+    elif args.attack == "cw":
+        return torchattacks.CW(model=net, c=0.1, lr=0.1, steps=200)
+
     elif args.attack == "fgsm":
         return torchattacks.FGSM(model=net, eps=args.eps)
+
     elif args.attack == "bim":
-        return torchattacks.BIM(model=net, alpha=args.eps/args.steps, steps=args.steps)
+        return torchattacks.BIM(model=net, eps=args.eps, alpha=1/255)
+
+    elif args.attack == "deepfool":
+        return torchattacks.DeepFool(model=net, steps=10)
+
+    elif args.attack == "sparse":
+        return torchattacks.SparseFool(model=net)
+
     elif args.attack == "gn":
-        return torchattacks.GN(model=net, sigma=args.std)
-    elif args.attack == 'eot':
-        return torchattacks.APGD(model=net, eps=args.eps,
-                                    alpha=args.eps/args.steps*2.3, steps=args.steps, sampling=5)
-
-
-    # White-Box Attacks
-    elif args.attack == 'cw':
-        classifier = PyTorchClassifier(
-            model=net,
-            clip_values=(0, 1),
-            loss=nn.CrossEntropyLoss(),
-            input_shape=(args.channel, args.img_size, args.img_size),
-            nb_classes=args.n_classes,
-        )
-        attack = CarliniL2Method(classifier=classifier, binary_search_steps=2, initial_const=100, max_iter=1, batch_size=args.batch_size*3, verbose=False)
-        def f_attack(input, target):
-            return torch.from_numpy(attack.generate(x=input.cpu(), y=target.cpu())).cuda()
-        return f_attack
-    elif args.attack == 'ead':
-        classifier = PyTorchClassifier(
-            model=net,
-            clip_values=(0, 1),
-            loss=nn.CrossEntropyLoss(),
-            input_shape=(args.channel, args.img_size, args.img_size),
-            nb_classes=args.n_classes,
-        )
-        attack = ElasticNet(classifier=classifier, binary_search_steps=2, initial_const=100, max_iter=1, batch_size=args.batch_size*3, verbose=False)
-        def f_attack(input, target):
-            return torch.from_numpy(attack.generate(x=input.cpu(), y=target.cpu())).cuda()
-        return f_attack
-
-
-    # Black-Box Attacks
-    elif args.attack == "boundary":
-        classifier = PyTorchClassifier(
-            model=net,
-            clip_values=(0, 1),
-            loss=nn.CrossEntropyLoss(),
-            input_shape=(args.channel, args.img_size, args.img_size),
-            nb_classes=args.n_classes,
-        )
-        attack = BoundaryAttack_(estimator=classifier, batch_size=args.batch_size*3, max_iter=1000, verbose=False)
-        def f_attack(input, target):
-            adv_target = torch.randint(low=0, high=args.n_classes-1, size=target.shape).cuda()
-            adv_target = adv_target + (adv_target >= target).float()
-            adv_target = adv_target - (adv_target > args.n_classes-1).float()
-            return torch.from_numpy(attack.generate(x=input.cpu(), y=adv_target.cpu())).cuda()
-        return f_attack
-
-    elif args.attack == "hop":
-        classifier = PyTorchClassifier(
-            model=net,
-            clip_values=(0, 1),
-            loss=nn.CrossEntropyLoss(),
-            input_shape=(args.channel, args.img_size, args.img_size),
-            nb_classes=args.n_classes,
-        )
-        attack = HopSkipJump_(classifier=classifier, max_iter=10, batch_size=args.batch_size*3, verbose=False)
-        def f_attack(input, target):
-            adv_target = torch.randint(low=0, high=args.n_classes-1, size=target.shape).cuda()
-            adv_target = adv_target + (adv_target >= target).float()
-            adv_target = adv_target - (adv_target > args.n_classes-1).float()
-            return torch.from_numpy(attack.generate(x=input.cpu(), y=adv_target.cpu())).cuda()
-        return f_attack
-
-    elif args.attack == "square":
-        classifier = PyTorchClassifier(
-            model=net,
-            clip_values=(0, 1),
-            loss=nn.CrossEntropyLoss(),
-            input_shape=(args.channel, args.img_size, args.img_size),
-            nb_classes=args.n_classes,
-        )
-        attack = SquareAttack(estimator=classifier, eps=args.eps, nb_restarts=1, max_iter=1000, batch_size=args.batch_size, verbose=False)
-        def f_attack(input, target):
-            return torch.from_numpy(attack.generate(x=input.cpu(), y=target.cpu())).cuda()
-        return f_attack
-    elif args.attack == "gen":
-        import foolbox as fb
-        fmodel = fb.PyTorchModel(net, bounds=(0, 1))
-        attack = fb.attacks.GenAttack(steps=100)
-        def f_attack(input, target):
-            from foolbox.criteria import TargetedMisclassification
-            adv_target = torch.randint(low=0, high=args.n_classes-1, size=target.shape).cuda()
-            adv_target = adv_target + (adv_target >= target).float()
-            adv_target = adv_target - (adv_target > args.n_classes-1).float()
-            return attack(fmodel, input, TargetedMisclassification(adv_target.long()), epsilons=args.eps)[1]
-        return f_attack
+        return torchattacks.GN(model=net, sigma=args.eps)
 
 
 
@@ -208,11 +113,10 @@ def dataset_loader(args):
 
 
     args.batch_size = 100
-    # args.batch_size = 70
 
     # Full Trainloader/Testloader
-    trainloader = torch.utils.data.DataLoader(dataset(args, True,  transform_train), batch_size=args.batch_size, shuffle=True, pin_memory=True, num_workers=4)
-    testloader  = torch.utils.data.DataLoader(dataset(args, False, transform_test),  batch_size=args.batch_size, shuffle=True, pin_memory=True, num_workers=4)
+    trainloader = torch.utils.data.DataLoader(dataset(args, True,  transform_train), batch_size=args.batch_size, shuffle=True, pin_memory=True)
+    testloader  = torch.utils.data.DataLoader(dataset(args, False, transform_test),  batch_size=args.batch_size, shuffle=True, pin_memory=True)
 
     return trainloader, testloader
 

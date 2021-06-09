@@ -22,13 +22,14 @@ torch.backends.cudnn.enabled = True
 # argument parser
 parser = argparse.ArgumentParser(description='Joint Adversarial Defense')
 parser.add_argument('--steps', default=10, type=int, help='adv. steps')
-parser.add_argument('--eps', required=True, type=float, help='max norm')
-parser.add_argument('--dataset', required=True, type=str, help='dataset name')
-parser.add_argument('--network', required=True, type=str, help='network name')
-parser.add_argument('--data_root', required=True, type=str, help='path to dataset')
+parser.add_argument('--eps', default=0.03, type=float, help='max norm')
+parser.add_argument('--dataset', default='cifar10', type=str, help='dataset name')
+parser.add_argument('--network', default='vgg', type=str, help='network name')
+parser.add_argument('--data_root', default='./datasets', type=str, help='path to dataset')
 parser.add_argument('--save_dir', default='./experiment', type=str, help='save directory')
-parser.add_argument('--datetime', required=True, type=str, help='checkpoint datetime')
-parser.add_argument('--baseline', required=True, type=str, help='baseline')
+parser.add_argument('--datetime', default=10, type=str, help='checkpoint datetime')
+parser.add_argument('--baseline', default='LP', type=str, help='baseline')
+# 0: plain, 1: AT, 2: RFM, 3: mAT, 4: LP, 5: trade
 
 args = parser.parse_args()
 
